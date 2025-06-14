@@ -1,7 +1,7 @@
 class Cliente {
-  final int id;
+  final int? id;
   final String nome;
-  final String tipo; // 'F' para Física, 'J' para Jurídica
+  final String tipo; // F - Física / J - Jurídica
   final String cpfCnpj;
   final String? email;
   final String? telefone;
@@ -10,9 +10,10 @@ class Cliente {
   final String? bairro;
   final String? cidade;
   final String? uf;
+  final String? ultimaAlteracao;
 
   Cliente({
-    required this.id,
+    this.id,
     required this.nome,
     required this.tipo,
     required this.cpfCnpj,
@@ -23,23 +24,8 @@ class Cliente {
     this.bairro,
     this.cidade,
     this.uf,
+    this.ultimaAlteracao,
   });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'nome': nome,
-      'tipo': tipo,
-      'cpfCnpj': cpfCnpj,
-      'email': email,
-      'telefone': telefone,
-      'cep': cep,
-      'endereco': endereco,
-      'bairro': bairro,
-      'cidade': cidade,
-      'uf': uf,
-    };
-  }
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
     return Cliente(
@@ -54,6 +40,24 @@ class Cliente {
       bairro: json['bairro'],
       cidade: json['cidade'],
       uf: json['uf'],
+      ultimaAlteracao: json['ultimaAlteracao'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nome': nome,
+      'tipo': tipo,
+      'cpfCnpj': cpfCnpj,
+      'email': email,
+      'telefone': telefone,
+      'cep': cep,
+      'endereco': endereco,
+      'bairro': bairro,
+      'cidade': cidade,
+      'uf': uf,
+      'ultimaAlteracao': ultimaAlteracao,
+    };
   }
 } 

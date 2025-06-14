@@ -96,13 +96,13 @@ class AppController {
     switch (tipo) {
       case 'usuario':
         final usuarios = await getUsuarios();
-        return usuarios.isEmpty ? 1 : usuarios.last.id + 1;
+        return usuarios.isEmpty ? 1 : usuarios.last.id! + 1;
       case 'cliente':
         final clientes = await getClientes();
-        return clientes.isEmpty ? 1 : clientes.last.id + 1;
+        return clientes.isEmpty ? 1 : clientes.last.id! + 1;
       case 'produto':
         final produtos = await getProdutos();
-        return produtos.isEmpty ? 1 : produtos.last.id + 1;
+        return produtos.isEmpty ? 1 : produtos.last.id! + 1;
       default:
         throw Exception('Tipo de ID inválido');
     }

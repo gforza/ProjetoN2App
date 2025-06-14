@@ -1,8 +1,4 @@
 import 'package:flutter/material.dart';
-import 'cadastro_usuario_screen.dart';
-import 'cadastro_cliente_screen.dart';
-import 'cadastro_produto_screen.dart';
-import '../main.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -12,34 +8,44 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Força de Vendas'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: () => Navigator.pushNamed(context, '/sincronia'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, '/configuracao'),
+          ),
+        ],
       ),
       body: GridView.count(
         crossAxisCount: 2,
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         children: [
-          _buildMenuCard(
-            context,
-            'Usuários',
-            Icons.person,
-            const CadastroUsuarioScreen(),
-          ),
           _buildMenuCard(
             context,
             'Clientes',
             Icons.people,
-            const CadastroClienteScreen(),
+            () => Navigator.pushNamed(context, '/cadastro_cliente'),
+          ),
+          _buildMenuCard(
+            context,
+            'Usuários',
+            Icons.person,
+            () => Navigator.pushNamed(context, '/cadastro_usuario'),
           ),
           _buildMenuCard(
             context,
             'Produtos',
-            Icons.shopping_cart,
-            const CadastroProdutoScreen(),
+            Icons.inventory,
+            () => Navigator.pushNamed(context, '/cadastro_produto'),
           ),
           _buildMenuCard(
             context,
-            'Sair',
-            Icons.logout,
-            const LoginScreen(),
+            'Pedidos',
+            Icons.shopping_cart,
+            () => Navigator.pushNamed(context, '/cadastro_pedido'),
           ),
         ],
       ),
@@ -50,29 +56,25 @@ class HomeScreen extends StatelessWidget {
     BuildContext context,
     String title,
     IconData icon,
-    Widget screen,
+    VoidCallback onTap,
   ) {
     return Card(
+      elevation: 4,
       child: InkWell(
-        onTap: () {
-          if (screen is LoginScreen) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => screen),
-            );
-          } else {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => screen),
-            );
-          }
-        },
+        onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48),
+            Icon(
+              icon,
+              size: 48,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 8),
-            Text(title),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
           ],
         ),
       ),

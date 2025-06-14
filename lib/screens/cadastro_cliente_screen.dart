@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/cliente.dart';
-import '../controllers/app_controller.dart';
+import '../dao/cliente_dao.dart';
+import '../services/cep_service.dart';
 
 class CadastroClienteScreen extends StatefulWidget {
   const CadastroClienteScreen({super.key});
@@ -12,332 +13,303 @@ class CadastroClienteScreen extends StatefulWidget {
 class _CadastroClienteScreenState extends State<CadastroClienteScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
-  final _cpfCnpjController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _cpfController = TextEditingController();
   final _telefoneController = TextEditingController();
+  final _cepController = TextEditingController();
   final _enderecoController = TextEditingController();
+  final _numeroController = TextEditingController();
   final _bairroController = TextEditingController();
   final _cidadeController = TextEditingController();
-  final _appController = AppController();
-  List<Cliente> _clientes = [];
-  String _tipoSelecionado = 'PF';
-  Cliente? _clienteEmEdicao;
+  final _estadoController = TextEditingController();
+  final _clienteDao = ClienteDao();
+  final _cepService = CepService();
+  bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    _carregarClientes();
+  void dispose() {
+    _nomeController.dispose();
+    _cpfController.dispose();
+    _telefoneController.dispose();
+    _cepController.dispose();
+    _enderecoController.dispose();
+    _numeroController.dispose();
+    _bairroController.dispose();
+    _cidadeController.dispose();
+    _estadoController.dispose();
+    super.dispose();
   }
 
-  Future<void> _carregarClientes() async {
-    final clientes = await _appController.getClientes();
+  Future<void> _buscarCep() async {
+    if (_cepController.text.length != 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('CEP inválido'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
-      _clientes = clientes;
+      _isLoading = true;
     });
+
+    try {
+      final cepInfo = await _cepService.buscarCep(_cepController.text);
+      if (mounted) {
+        setState(() {
+          _enderecoController.text = cepInfo['logradouro'] ?? '';
+          _bairroController.text = cepInfo['bairro'] ?? '';
+          _cidadeController.text = cepInfo['localidade'] ?? '';
+          _estadoController.text = cepInfo['uf'] ?? '';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao buscar CEP: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _salvarCliente() async {
     if (_formKey.currentState!.validate()) {
-      if (_clienteEmEdicao != null) {
-        // Atualizar cliente existente
-        final clienteAtualizado = Cliente(
-          id: _clienteEmEdicao!.id,
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final cliente = Cliente(
           nome: _nomeController.text,
-          cpfCnpj: _cpfCnpjController.text,
-          email: _emailController.text,
+          tipo: 'F', // F para pessoa física
+          cpfCnpj: _cpfController.text,
           telefone: _telefoneController.text,
+          cep: _cepController.text,
           endereco: _enderecoController.text,
           bairro: _bairroController.text,
           cidade: _cidadeController.text,
-          tipo: _tipoSelecionado,
+          uf: _estadoController.text,
         );
 
-        await _appController.updateCliente(clienteAtualizado);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cliente atualizado com sucesso'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        // Criar novo cliente
-        final novoCliente = Cliente(
-          id: _clientes.isEmpty ? 1 : _clientes.last.id + 1,
-          nome: _nomeController.text,
-          cpfCnpj: _cpfCnpjController.text,
-          email: _emailController.text,
-          telefone: _telefoneController.text,
-          endereco: _enderecoController.text,
-          bairro: _bairroController.text,
-          cidade: _cidadeController.text,
-          tipo: _tipoSelecionado,
-        );
+        await _clienteDao.insert(cliente);
 
-        await _appController.addCliente(novoCliente);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cliente cadastrado com sucesso'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cliente salvo com sucesso'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao salvar cliente: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
-
-      await _carregarClientes();
-      _limparCampos();
     }
-  }
-
-  Future<void> _excluirCliente(int id) async {
-    await _appController.deleteCliente(id);
-    await _carregarClientes();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cliente excluído com sucesso'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  void _editarCliente(Cliente cliente) {
-    setState(() {
-      _clienteEmEdicao = cliente;
-      _nomeController.text = cliente.nome;
-      _cpfCnpjController.text = cliente.cpfCnpj;
-      _emailController.text = cliente.email ?? '';
-      _telefoneController.text = cliente.telefone ?? '';
-      _enderecoController.text = cliente.endereco ?? '';
-      _bairroController.text = cliente.bairro ?? '';
-      _cidadeController.text = cliente.cidade ?? '';
-      _tipoSelecionado = cliente.tipo;
-    });
-  }
-
-  void _visualizarCliente(Cliente cliente) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detalhes do Cliente'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Nome: ${cliente.nome}'),
-              const SizedBox(height: 8),
-              Text('Tipo: ${cliente.tipo == 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}'),
-              const SizedBox(height: 8),
-              Text('${cliente.tipo == 'PF' ? 'CPF' : 'CNPJ'}: ${cliente.cpfCnpj}'),
-              const SizedBox(height: 8),
-              Text('E-mail: ${cliente.email ?? ''}'),
-              const SizedBox(height: 8),
-              Text('Telefone: ${cliente.telefone ?? ''}'),
-              const SizedBox(height: 8),
-              Text('Endereço: ${cliente.endereco ?? ''}'),
-              const SizedBox(height: 8),
-              Text('Bairro: ${cliente.bairro ?? ''}'),
-              const SizedBox(height: 8),
-              Text('Cidade: ${cliente.cidade ?? ''}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _limparCampos() {
-    setState(() {
-      _clienteEmEdicao = null;
-      _nomeController.clear();
-      _cpfCnpjController.clear();
-      _emailController.clear();
-      _telefoneController.clear();
-      _enderecoController.clear();
-      _bairroController.clear();
-      _cidadeController.clear();
-      _tipoSelecionado = 'PF';
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_clienteEmEdicao == null ? 'Cadastro de Clientes' : 'Editar Cliente'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Novo Cliente'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _nomeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome*',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, insira o nome';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _tipoSelecionado,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo*',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'PF', child: Text('Pessoa Física')),
-                      DropdownMenuItem(value: 'PJ', child: Text('Pessoa Jurídica')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _tipoSelecionado = value;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _cpfCnpjController,
-                    decoration: InputDecoration(
-                      labelText: _tipoSelecionado == 'PF' ? 'CPF*' : 'CNPJ*',
-                      border: const OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, insira o ${_tipoSelecionado == 'PF' ? 'CPF' : 'CNPJ'}';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'E-mail',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _telefoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Telefone',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _enderecoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Endereço',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _bairroController,
-                    decoration: const InputDecoration(
-                      labelText: 'Bairro',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _cidadeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Cidade',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton(
-                        onPressed: _salvarCliente,
-                        child: Text(_clienteEmEdicao == null ? 'Salvar' : 'Atualizar'),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: _nomeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome',
+                        border: OutlineInputBorder(),
                       ),
-                      if (_clienteEmEdicao != null)
-                        ElevatedButton(
-                          onPressed: _limparCampos,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey,
-                          ),
-                          child: const Text('Cancelar'),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Clientes Cadastrados',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _clientes.length,
-                itemBuilder: (context, index) {
-                  final cliente = _clientes[index];
-                  return ListTile(
-                    title: Text(cliente.nome),
-                    subtitle: Text('${cliente.tipo == 'PF' ? 'CPF' : 'CNPJ'}: ${cliente.cpfCnpj}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o nome';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _cpfController,
+                      decoration: const InputDecoration(
+                        labelText: 'CPF',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o CPF';
+                        }
+                        if (value.length != 11) {
+                          return 'CPF deve ter 11 dígitos';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _telefoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Telefone',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o telefone';
+                        }
+                        if (value.length < 10) {
+                          return 'Telefone inválido';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.visibility),
-                          onPressed: () => _visualizarCliente(cliente),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _cepController,
+                            decoration: const InputDecoration(
+                              labelText: 'CEP',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, insira o CEP';
+                              }
+                              if (value.length != 8) {
+                                return 'CEP deve ter 8 dígitos';
+                              }
+                              return null;
+                            },
+                          ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editarCliente(cliente),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _excluirCliente(cliente.id),
+                        const SizedBox(width: 16),
+                        ElevatedButton(
+                          onPressed: _buscarCep,
+                          child: const Text('Buscar'),
                         ),
                       ],
                     ),
-                  );
-                },
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _enderecoController,
+                      decoration: const InputDecoration(
+                        labelText: 'Endereço',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o endereço';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _numeroController,
+                      decoration: const InputDecoration(
+                        labelText: 'Número',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o número';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _bairroController,
+                      decoration: const InputDecoration(
+                        labelText: 'Bairro',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o bairro';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _cidadeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Cidade',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira a cidade';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _estadoController,
+                      decoration: const InputDecoration(
+                        labelText: 'Estado',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o estado';
+                        }
+                        if (value.length != 2) {
+                          return 'Estado deve ter 2 caracteres';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _salvarCliente,
+                        child: _isLoading
+                            ? const CircularProgressIndicator()
+                            : const Text('Salvar'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
     );
-  }
-
-  @override
-  void dispose() {
-    _nomeController.dispose();
-    _cpfCnpjController.dispose();
-    _emailController.dispose();
-    _telefoneController.dispose();
-    _enderecoController.dispose();
-    _bairroController.dispose();
-    _cidadeController.dispose();
-    super.dispose();
   }
 } 
