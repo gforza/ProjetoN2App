@@ -1,4 +1,4 @@
 # Aplicativo 
 
-Gabriel Forza Vago e
+Gabriel Forza Vago, Hebert e
 Thulio Kuster
