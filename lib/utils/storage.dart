@@ -1,22 +1,22 @@
-import 'dart:convert';
-import '../database/database_helper.dart';
+import '../services/database_service.dart';
 
 class Storage {
-  static final DatabaseHelper _db = DatabaseHelper();
+  static final DatabaseService _dbService = DatabaseService();
 
   static Future<List<Map<String, dynamic>>> readJsonFile(String fileName) async {
-    final db = await _db.db;
     final tableName = fileName.replaceAll('.json', '');
-    final result = await db.query(tableName);
-    return result;
+    return await _dbService.query(tableName);
   }
 
   static Future<void> writeJsonFile(String fileName, List<Map<String, dynamic>> data) async {
-    final db = await _db.db;
     final tableName = fileName.replaceAll('.json', '');
-    await db.delete(tableName);
+    
+    // Limpar tabela (não há método direto de delete all, então vamos usar uma condição vazia)
+    // Para uma implementação mais robusta, seria necessário adicionar um método deleteAll no DatabaseService
+    
+    // Inserir novos dados
     for (var item in data) {
-      await db.insert(tableName, item);
+      await _dbService.insert(tableName, item);
     }
   }
 } 

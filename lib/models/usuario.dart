@@ -1,8 +1,12 @@
-class Usuario {
-  final int? id;
-  final String nome;
-  final String senha;
-  final String? ultimaAlteracao;
+import 'base_model.dart';
+
+class Usuario implements BaseModel {
+  @override
+  int? id;
+  String nome;
+  String senha;
+  @override
+  DateTime? ultimaAlteracao;
 
   Usuario({
     this.id,
@@ -16,7 +20,9 @@ class Usuario {
       id: json['id'],
       nome: json['nome'],
       senha: json['senha'],
-      ultimaAlteracao: json['ultimaAlteracao'],
+      ultimaAlteracao: json['ultimaAlteracao'] == null
+          ? null
+          : DateTime.parse(json['ultimaAlteracao']),
     );
   }
 
@@ -25,7 +31,7 @@ class Usuario {
       'id': id,
       'nome': nome,
       'senha': senha,
-      'ultimaAlteracao': ultimaAlteracao,
+      'ultimaAlteracao': ultimaAlteracao?.toIso8601String(),
     };
   }
 } 

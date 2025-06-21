@@ -1,71 +1,47 @@
-import 'package:sqflite/sqflite.dart';
-import '../database/database_helper.dart';
 import '../models/cliente.dart';
+import '../services/database_service.dart';
 
 class ClienteDao {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final DatabaseService _dbService = DatabaseService();
 
   Future<int> insert(Cliente cliente) async {
-    final db = await _dbHelper.db;
-    return await db.insert('clientes', cliente.toJson());
+    return await _dbService.insert('clientes', cliente.toJson());
   }
 
   Future<int> update(Cliente cliente) async {
-    final db = await _dbHelper.db;
-    return await db.update(
+    return await _dbService.update(
       'clientes',
       cliente.toJson(),
-      where: 'id = ?',
-      whereArgs: [cliente.id],
+      'id = ?',
+      [cliente.id],
     );
   }
 
   Future<int> delete(int id) async {
-    final db = await _dbHelper.db;
-    return await db.delete(
+    return await _dbService.delete(
       'clientes',
-      where: 'id = ?',
-      whereArgs: [id],
+      'id = ?',
+      [id],
     );
   }
 
   Future<Cliente?> getById(int id) async {
-    final db = await _dbHelper.db;
-    final List<Map<String, dynamic>> maps = await db.query(
+    final List<Map<String, dynamic>> maps = await _dbService.query(
       'clientes',
       where: 'id = ?',
       whereArgs: [id],
     );
 
-    if (maps.isEmpty) return null;
-    return Cliente.fromJson(maps.first);
+    if (maps.isNotEmpty) {
+      return Cliente.fromJson(maps.first);
+    }
+    return null;
   }
 
   Future<List<Cliente>> getAll() async {
-    final db = await _dbHelper.db;
-    final List<Map<String, dynamic>> maps = await db.query('clientes');
-    return List.generate(maps.length, (i) => Cliente.fromJson(maps[i]));
-  }
-
-  Future<List<Cliente>> searchByName(String nome) async {
-    final db = await _dbHelper.db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'clientes',
-      where: 'nome LIKE ?',
-      whereArgs: ['%$nome%'],
-    );
-    return List.generate(maps.length, (i) => Cliente.fromJson(maps[i]));
-  }
-
-  Future<Cliente?> getByCpfCnpj(String cpfCnpj) async {
-    final db = await _dbHelper.db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'clientes',
-      where: 'cpfCnpj = ?',
-      whereArgs: [cpfCnpj],
-    );
-
-    if (maps.isEmpty) return null;
-    return Cliente.fromJson(maps.first);
+    final List<Map<String, dynamic>> maps = await _dbService.query('clientes');
+    return List.generate(maps.length, (i) {
+      return Cliente.fromJson(maps[i]);
+    });
   }
 } 

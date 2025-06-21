@@ -1,14 +1,17 @@
+import 'base_model.dart';
 import 'pedido_item.dart';
 import 'pedido_pagamento.dart';
 
-class Pedido {
-  final int? id;
-  final int idCliente;
-  final int idUsuario;
-  final double totalPedido;
-  final String? ultimaAlteracao;
-  final List<PedidoItem> itens;
-  final List<PedidoPagamento> pagamentos;
+class Pedido implements BaseModel {
+  @override
+  int? id;
+  int idCliente;
+  int idUsuario;
+  double totalPedido;
+  @override
+  DateTime? ultimaAlteracao;
+  List<PedidoItem> itens;
+  List<PedidoPagamento> pagamentos;
 
   Pedido({
     this.id,
@@ -26,7 +29,9 @@ class Pedido {
       idCliente: json['idCliente'],
       idUsuario: json['idUsuario'],
       totalPedido: json['totalPedido'].toDouble(),
-      ultimaAlteracao: json['ultimaAlteracao'],
+      ultimaAlteracao: json['ultimaAlteracao'] == null
+          ? null
+          : DateTime.parse(json['ultimaAlteracao']),
       itens: (json['itens'] as List)
           .map((item) => PedidoItem.fromJson(item))
           .toList(),
@@ -42,7 +47,7 @@ class Pedido {
       'idCliente': idCliente,
       'idUsuario': idUsuario,
       'totalPedido': totalPedido,
-      'ultimaAlteracao': ultimaAlteracao,
+      'ultimaAlteracao': ultimaAlteracao?.toIso8601String(),
       'itens': itens.map((item) => item.toJson()).toList(),
       'pagamentos': pagamentos.map((pagamento) => pagamento.toJson()).toList(),
     };

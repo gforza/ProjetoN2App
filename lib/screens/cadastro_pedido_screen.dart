@@ -23,6 +23,7 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
   bool _isLoading = false;
 
   Cliente? _clienteSelecionado;
+  List<Cliente> _clientes = [];
   List<PedidoItem> _itens = [];
   List<PedidoPagamento> _pagamentos = [];
   double _totalPedido = 0.0;
@@ -43,6 +44,7 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
       final clientes = await _clienteDao.getAll();
       if (mounted) {
         setState(() {
+          _clientes = clientes;
           _isLoading = false;
         });
       }
@@ -62,7 +64,10 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
   }
 
   Future<void> _adicionarItem() async {
+    try {
     final produtos = await _produtoDao.getAtivos();
+      if (!mounted) return;
+
     if (produtos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -96,23 +101,35 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
     );
 
     if (produto != null) {
+        final quantidadeController = TextEditingController();
       final quantidade = await showDialog<double>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Quantidade'),
           content: TextField(
+              controller: quantidadeController,
             keyboardType: TextInputType.number,
+              autofocus: true,
             decoration: const InputDecoration(
               labelText: 'Quantidade',
               border: OutlineInputBorder(),
             ),
-            onSubmitted: (value) {
-              final quantidade = double.tryParse(value);
-              if (quantidade != null && quantidade > 0) {
-                Navigator.pop(context, quantidade);
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () {
+                  final valor = double.tryParse(quantidadeController.text);
+                  if (valor != null && valor > 0) {
+                    Navigator.pop(context, valor);
               }
             },
+                child: const Text('Adicionar'),
           ),
+            ],
         ),
       );
 
@@ -126,28 +143,50 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
           ));
           _calcularTotal();
         });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao buscar produtos: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
   Future<void> _adicionarPagamento() async {
+    final valorController = TextEditingController();
     final valor = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Valor do Pagamento'),
         content: TextField(
+          controller: valorController,
           keyboardType: TextInputType.number,
+          autofocus: true,
           decoration: const InputDecoration(
             labelText: 'Valor',
             border: OutlineInputBorder(),
           ),
-          onSubmitted: (value) {
-            final valor = double.tryParse(value);
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              final valor = double.tryParse(valorController.text);
             if (valor != null && valor > 0) {
               Navigator.pop(context, valor);
             }
           },
+            child: const Text('Adicionar'),
         ),
+        ],
       ),
     );
 
@@ -213,6 +252,7 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
           totalPedido: _totalPedido,
           itens: _itens,
           pagamentos: _pagamentos,
+          ultimaAlteracao: DateTime.now(),
         );
 
         await _pedidoDao.insert(pedido);
@@ -261,26 +301,13 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
                     child: ListView(
                       padding: const EdgeInsets.all(16.0),
                       children: [
-                        FutureBuilder<List<Cliente>>(
-                          future: _clienteDao.getAll(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-
-                            if (snapshot.hasError) {
-                              return Text('Erro: ${snapshot.error}');
-                            }
-
-                            final clientes = snapshot.data ?? [];
-
-                            return DropdownButtonFormField<Cliente>(
+                        DropdownButtonFormField<Cliente>(
                               decoration: const InputDecoration(
                                 labelText: 'Cliente',
                                 border: OutlineInputBorder(),
                               ),
                               value: _clienteSelecionado,
-                              items: clientes.map((cliente) {
+                          items: _clientes.map((cliente) {
                                 return DropdownMenuItem(
                                   value: cliente,
                                   child: Text(cliente.nome),
@@ -296,8 +323,6 @@ class _CadastroPedidoScreenState extends State<CadastroPedidoScreen> {
                                   return 'Selecione um cliente';
                                 }
                                 return null;
-                              },
-                            );
                           },
                         ),
                         const SizedBox(height: 16),

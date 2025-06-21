@@ -9,6 +9,7 @@ import '../models/cliente.dart';
 import '../models/produto.dart';
 import '../models/pedido.dart';
 import '../models/usuario.dart';
+import '../models/base_model.dart';
 
 class SincroniaScreen extends StatefulWidget {
   const SincroniaScreen({super.key});
@@ -38,180 +39,105 @@ class _SincroniaScreenState extends State<SincroniaScreen> {
     _apiService = ApiService(baseUrl: url);
   }
 
-  Future<void> _sincronizarClientes() async {
+  Future<void> _sincronizarEntidade<T extends BaseModel>({
+    required Future<List<T>> Function() getFromApi,
+    required Future<List<T>> Function() getFromLocal,
+    required Future<T?> Function(int) getLocalById,
+    required Future<int> Function(T) insertLocal,
+    required Future<int> Function(T) updateLocal,
+    required Future<void> Function(T) postToApi,
+    required String nomeEntidade,
+  }) async {
     setState(() {
       _isLoading = true;
-      _status = 'Sincronizando clientes...';
+      _status = 'Sincronizando $nomeEntidade...';
     });
 
     try {
-      // Buscar clientes do servidor
-      final clientesServidor = await _apiService.getClientes();
-      final clientesLocal = await _clienteDao.getAll();
+      // 1. Buscar dados do servidor e locais
+      final itensApi = await getFromApi();
+      final itensLocal = await getFromLocal();
 
-      // Atualizar clientes locais
-      for (var cliente in clientesServidor) {
-        final clienteLocal = clientesLocal.firstWhere(
-          (c) => c.id == cliente.id,
-          orElse: () => cliente,
-        );
+      // 2. Atualizar/Inserir dados locais a partir da API
+      for (final itemApi in itensApi) {
+        final itemLocal = itemApi.id != null ? await getLocalById(itemApi.id!) : null;
 
-        if (clienteLocal.ultimaAlteracao != cliente.ultimaAlteracao) {
-          await _clienteDao.update(cliente);
+        if (itemLocal == null) {
+          // Item existe na API mas não localmente, então insere
+          await insertLocal(itemApi);
+        } else {
+          // Item existe em ambos, verifica qual é o mais recente
+          final dtApi = itemApi.ultimaAlteracao ?? DateTime(1970);
+          final dtLocal = itemLocal.ultimaAlteracao ?? DateTime(1970);
+          if (dtApi.isAfter(dtLocal)) {
+            await updateLocal(itemApi);
+          }
         }
       }
 
-      // Enviar clientes locais para o servidor
-      for (var cliente in clientesLocal) {
-        if (cliente.id == null) {
-          await _apiService.postCliente(cliente);
+      // 3. Enviar dados locais novos para a API
+      for (final itemLocal in itensLocal) {
+        if (itemLocal.id == null) {
+          await postToApi(itemLocal);
         }
       }
 
       setState(() {
-        _status = 'Clientes sincronizados com sucesso!';
+        _status = '$nomeEntidade sincronizados com sucesso!';
       });
     } catch (e) {
       setState(() {
-        _status = 'Erro ao sincronizar clientes: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
+        _status = 'Erro ao sincronizar $nomeEntidade: ${e.toString()}';
       });
     }
+  }
+
+  Future<void> _sincronizarClientes() async {
+    await _sincronizarEntidade<Cliente>(
+      getFromApi: _apiService.getClientes,
+      getFromLocal: _clienteDao.getAll,
+      getLocalById: _clienteDao.getById,
+      insertLocal: _clienteDao.insert,
+      updateLocal: _clienteDao.update,
+      postToApi: _apiService.postCliente,
+      nomeEntidade: 'Clientes',
+    );
   }
 
   Future<void> _sincronizarProdutos() async {
-    setState(() {
-      _isLoading = true;
-      _status = 'Sincronizando produtos...';
-    });
-
-    try {
-      // Buscar produtos do servidor
-      final produtosServidor = await _apiService.getProdutos();
-      final produtosLocal = await _produtoDao.getAll();
-
-      // Atualizar produtos locais
-      for (var produto in produtosServidor) {
-        final produtoLocal = produtosLocal.firstWhere(
-          (p) => p.id == produto.id,
-          orElse: () => produto,
-        );
-
-        if (produtoLocal.ultimaAlteracao != produto.ultimaAlteracao) {
-          await _produtoDao.update(produto);
-        }
-      }
-
-      // Enviar produtos locais para o servidor
-      for (var produto in produtosLocal) {
-        if (produto.id == null) {
-          await _apiService.postProduto(produto);
-        }
-      }
-
-      setState(() {
-        _status = 'Produtos sincronizados com sucesso!';
-      });
-    } catch (e) {
-      setState(() {
-        _status = 'Erro ao sincronizar produtos: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    await _sincronizarEntidade<Produto>(
+      getFromApi: _apiService.getProdutos,
+      getFromLocal: _produtoDao.getAll,
+      getLocalById: _produtoDao.getById,
+      insertLocal: _produtoDao.insert,
+      updateLocal: _produtoDao.update,
+      postToApi: _apiService.postProduto,
+      nomeEntidade: 'Produtos',
+    );
   }
 
   Future<void> _sincronizarPedidos() async {
-    setState(() {
-      _isLoading = true;
-      _status = 'Sincronizando pedidos...';
-    });
-
-    try {
-      // Buscar pedidos do servidor
-      final pedidosServidor = await _apiService.getPedidos();
-      final pedidosLocal = await _pedidoDao.getAll();
-
-      // Atualizar pedidos locais
-      for (var pedido in pedidosServidor) {
-        final pedidoLocal = pedidosLocal.firstWhere(
-          (p) => p.id == pedido.id,
-          orElse: () => pedido,
-        );
-
-        if (pedidoLocal.ultimaAlteracao != pedido.ultimaAlteracao) {
-          await _pedidoDao.update(pedido);
-        }
-      }
-
-      // Enviar pedidos locais para o servidor
-      for (var pedido in pedidosLocal) {
-        if (pedido.id == null) {
-          await _apiService.postPedido(pedido);
-        }
-      }
-
-      setState(() {
-        _status = 'Pedidos sincronizados com sucesso!';
-      });
-    } catch (e) {
-      setState(() {
-        _status = 'Erro ao sincronizar pedidos: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    await _sincronizarEntidade<Pedido>(
+      getFromApi: _apiService.getPedidos,
+      getFromLocal: _pedidoDao.getAll,
+      getLocalById: _pedidoDao.getById,
+      insertLocal: _pedidoDao.insert,
+      updateLocal: _pedidoDao.update,
+      postToApi: _apiService.postPedido,
+      nomeEntidade: 'Pedidos',
+    );
   }
 
   Future<void> _sincronizarUsuarios() async {
-    setState(() {
-      _isLoading = true;
-      _status = 'Sincronizando usuários...';
-    });
-
-    try {
-      // Buscar usuários do servidor
-      final usuariosServidor = await _apiService.getUsuarios();
-      final usuariosLocal = await _usuarioDao.getAll();
-
-      // Atualizar usuários locais
-      for (var usuario in usuariosServidor) {
-        final usuarioLocal = usuariosLocal.firstWhere(
-          (u) => u.id == usuario.id,
-          orElse: () => usuario,
-        );
-
-        if (usuarioLocal.ultimaAlteracao != usuario.ultimaAlteracao) {
-          await _usuarioDao.update(usuario);
-        }
-      }
-
-      // Enviar usuários locais para o servidor
-      for (var usuario in usuariosLocal) {
-        if (usuario.id == null) {
-          await _apiService.postUsuario(usuario);
-        }
-      }
-
-      setState(() {
-        _status = 'Usuários sincronizados com sucesso!';
-      });
-    } catch (e) {
-      setState(() {
-        _status = 'Erro ao sincronizar usuários: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    await _sincronizarEntidade<Usuario>(
+      getFromApi: _apiService.getUsuarios,
+      getFromLocal: _usuarioDao.getAll,
+      getLocalById: _usuarioDao.getById,
+      insertLocal: _usuarioDao.insert,
+      updateLocal: _usuarioDao.update,
+      postToApi: _apiService.postUsuario,
+      nomeEntidade: 'Usuários',
+    );
   }
 
   Future<void> _sincronizarTudo() async {

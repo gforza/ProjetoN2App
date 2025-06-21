@@ -7,19 +7,14 @@ import 'screens/cadastro_produto_screen.dart';
 import 'screens/cadastro_pedido_screen.dart';
 import 'screens/sincronia_screen.dart';
 import 'screens/configuracao_screen.dart';
-import 'database/database_helper.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'services/database_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  if (kIsWeb) {
-    // Configurar o SQLite para web
-    databaseFactory = databaseFactoryFfi;
-  }
+  // Inicializar o banco de dados nativo
+  await DatabaseService().initDatabase();
   
-  await DatabaseHelper().db;
   runApp(const MainApp());
 }
 

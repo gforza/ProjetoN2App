@@ -1,28 +1,24 @@
-import 'package:sqflite/sqflite.dart';
-import '../database/database_helper.dart';
 import '../models/pedido.dart';
 import '../models/pedido_item.dart' as item;
 import '../models/pedido_pagamento.dart' as pagamento;
+import '../services/database_service.dart';
 
 class PedidoDao {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final DatabaseService _dbService = DatabaseService();
 
   Future<int> insert(Pedido pedido) async {
-    final db = await _dbHelper.db;
-    int pedidoId = 0;
+    // Inserir pedido
+    final pedidoId = await _dbService.insert('pedidos', {
+      'idCliente': pedido.idCliente,
+      'idUsuario': pedido.idUsuario,
+      'totalPedido': pedido.totalPedido,
+      'ultimaAlteracao': pedido.ultimaAlteracao?.toIso8601String(),
+    });
 
-    await db.transaction((txn) async {
-      // Inserir pedido
-      pedidoId = await txn.insert('pedidos', {
-        'idCliente': pedido.idCliente,
-        'idUsuario': pedido.idUsuario,
-        'totalPedido': pedido.totalPedido,
-        'ultimaAlteracao': pedido.ultimaAlteracao,
-      });
-
+    if (pedidoId > 0) {
       // Inserir itens
       for (var item in pedido.itens) {
-        await txn.insert('pedido_itens', {
+        await _dbService.insert('pedido_itens', {
           'idPedido': pedidoId,
           'idProduto': item.idProduto,
           'quantidade': item.quantidade,
@@ -31,50 +27,49 @@ class PedidoDao {
       }
 
       // Inserir pagamentos
-      for (var pagamento in pedido.pagamentos) {
-        await txn.insert('pedido_pagamentos', {
+      for (var pag in pedido.pagamentos) {
+        await _dbService.insert('pedido_pagamentos', {
           'idPedido': pedidoId,
-          'valor': pagamento.valor,
+          'valor': pag.valor,
         });
       }
-    });
+    }
 
     return pedidoId;
   }
 
   Future<int> update(Pedido pedido) async {
-    final db = await _dbHelper.db;
-    int result = 0;
+    if (pedido.id == null) return -1;
 
-    await db.transaction((txn) async {
-      // Atualizar pedido
-      result = await txn.update(
-        'pedidos',
-        {
-          'idCliente': pedido.idCliente,
-          'idUsuario': pedido.idUsuario,
-          'totalPedido': pedido.totalPedido,
-          'ultimaAlteracao': pedido.ultimaAlteracao,
-        },
-        where: 'id = ?',
-        whereArgs: [pedido.id],
-      );
+    // Atualizar pedido
+    final result = await _dbService.update(
+      'pedidos',
+      {
+        'idCliente': pedido.idCliente,
+        'idUsuario': pedido.idUsuario,
+        'totalPedido': pedido.totalPedido,
+        'ultimaAlteracao': pedido.ultimaAlteracao?.toIso8601String(),
+      },
+      'id = ?',
+      [pedido.id],
+    );
 
+    if (result > 0) {
       // Deletar itens e pagamentos antigos
-      await txn.delete(
+      await _dbService.delete(
         'pedido_itens',
-        where: 'idPedido = ?',
-        whereArgs: [pedido.id],
+        'idPedido = ?',
+        [pedido.id],
       );
-      await txn.delete(
+      await _dbService.delete(
         'pedido_pagamentos',
-        where: 'idPedido = ?',
-        whereArgs: [pedido.id],
+        'idPedido = ?',
+        [pedido.id],
       );
 
       // Inserir novos itens
       for (var item in pedido.itens) {
-        await txn.insert('pedido_itens', {
+        await _dbService.insert('pedido_itens', {
           'idPedido': pedido.id,
           'idProduto': item.idProduto,
           'quantidade': item.quantidade,
@@ -83,48 +78,40 @@ class PedidoDao {
       }
 
       // Inserir novos pagamentos
-      for (var pagamento in pedido.pagamentos) {
-        await txn.insert('pedido_pagamentos', {
+      for (var pag in pedido.pagamentos) {
+        await _dbService.insert('pedido_pagamentos', {
           'idPedido': pedido.id,
-          'valor': pagamento.valor,
+          'valor': pag.valor,
         });
       }
-    });
+    }
 
     return result;
   }
 
   Future<int> delete(int id) async {
-    final db = await _dbHelper.db;
-    int result = 0;
+    // Deletar itens e pagamentos
+    await _dbService.delete(
+      'pedido_itens',
+      'idPedido = ?',
+      [id],
+    );
+    await _dbService.delete(
+      'pedido_pagamentos',
+      'idPedido = ?',
+      [id],
+    );
 
-    await db.transaction((txn) async {
-      // Deletar itens e pagamentos
-      await txn.delete(
-        'pedido_itens',
-        where: 'idPedido = ?',
-        whereArgs: [id],
-      );
-      await txn.delete(
-        'pedido_pagamentos',
-        where: 'idPedido = ?',
-        whereArgs: [id],
-      );
-
-      // Deletar pedido
-      result = await txn.delete(
-        'pedidos',
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-    });
-
-    return result;
+    // Deletar pedido
+    return await _dbService.delete(
+      'pedidos',
+      'id = ?',
+      [id],
+    );
   }
 
   Future<Pedido?> getById(int id) async {
-    final db = await _dbHelper.db;
-    final List<Map<String, dynamic>> pedidoMaps = await db.query(
+    final List<Map<String, dynamic>> pedidoMaps = await _dbService.query(
       'pedidos',
       where: 'id = ?',
       whereArgs: [id],
@@ -133,12 +120,12 @@ class PedidoDao {
     if (pedidoMaps.isEmpty) return null;
 
     final pedidoMap = pedidoMaps.first;
-    final List<Map<String, dynamic>> itemMaps = await db.query(
+    final List<Map<String, dynamic>> itemMaps = await _dbService.query(
       'pedido_itens',
       where: 'idPedido = ?',
       whereArgs: [id],
     );
-    final List<Map<String, dynamic>> pagamentoMaps = await db.query(
+    final List<Map<String, dynamic>> pagamentoMaps = await _dbService.query(
       'pedido_pagamentos',
       where: 'idPedido = ?',
       whereArgs: [id],
@@ -148,26 +135,27 @@ class PedidoDao {
       id: pedidoMap['id'] as int,
       idCliente: pedidoMap['idCliente'] as int,
       idUsuario: pedidoMap['idUsuario'] as int,
-      totalPedido: pedidoMap['totalPedido'] as double,
-      ultimaAlteracao: pedidoMap['ultimaAlteracao'] as String?,
+      totalPedido: (pedidoMap['totalPedido'] as num).toDouble(),
+      ultimaAlteracao: pedidoMap['ultimaAlteracao'] == null
+          ? null
+          : DateTime.parse(pedidoMap['ultimaAlteracao'] as String),
       itens: itemMaps.map((map) => item.PedidoItem.fromJson(map)).toList(),
       pagamentos: pagamentoMaps.map((map) => pagamento.PedidoPagamento.fromJson(map)).toList(),
     );
   }
 
   Future<List<Pedido>> getAll() async {
-    final db = await _dbHelper.db;
-    final List<Map<String, dynamic>> pedidoMaps = await db.query('pedidos');
+    final List<Map<String, dynamic>> pedidoMaps = await _dbService.query('pedidos');
     List<Pedido> pedidos = [];
 
     for (var pedidoMap in pedidoMaps) {
       final id = pedidoMap['id'] as int;
-      final List<Map<String, dynamic>> itemMaps = await db.query(
+      final List<Map<String, dynamic>> itemMaps = await _dbService.query(
         'pedido_itens',
         where: 'idPedido = ?',
         whereArgs: [id],
       );
-      final List<Map<String, dynamic>> pagamentoMaps = await db.query(
+      final List<Map<String, dynamic>> pagamentoMaps = await _dbService.query(
         'pedido_pagamentos',
         where: 'idPedido = ?',
         whereArgs: [id],
@@ -177,8 +165,10 @@ class PedidoDao {
         id: id,
         idCliente: pedidoMap['idCliente'] as int,
         idUsuario: pedidoMap['idUsuario'] as int,
-        totalPedido: pedidoMap['totalPedido'] as double,
-        ultimaAlteracao: pedidoMap['ultimaAlteracao'] as String?,
+        totalPedido: (pedidoMap['totalPedido'] as num).toDouble(),
+        ultimaAlteracao: pedidoMap['ultimaAlteracao'] == null
+            ? null
+            : DateTime.parse(pedidoMap['ultimaAlteracao'] as String),
         itens: itemMaps.map((map) => item.PedidoItem.fromJson(map)).toList(),
         pagamentos: pagamentoMaps.map((map) => pagamento.PedidoPagamento.fromJson(map)).toList(),
       ));
@@ -188,8 +178,7 @@ class PedidoDao {
   }
 
   Future<List<Pedido>> getByCliente(int idCliente) async {
-    final db = await _dbHelper.db;
-    final List<Map<String, dynamic>> pedidoMaps = await db.query(
+    final List<Map<String, dynamic>> pedidoMaps = await _dbService.query(
       'pedidos',
       where: 'idCliente = ?',
       whereArgs: [idCliente],
@@ -198,12 +187,12 @@ class PedidoDao {
 
     for (var pedidoMap in pedidoMaps) {
       final id = pedidoMap['id'] as int;
-      final List<Map<String, dynamic>> itemMaps = await db.query(
+      final List<Map<String, dynamic>> itemMaps = await _dbService.query(
         'pedido_itens',
         where: 'idPedido = ?',
         whereArgs: [id],
       );
-      final List<Map<String, dynamic>> pagamentoMaps = await db.query(
+      final List<Map<String, dynamic>> pagamentoMaps = await _dbService.query(
         'pedido_pagamentos',
         where: 'idPedido = ?',
         whereArgs: [id],
@@ -213,8 +202,10 @@ class PedidoDao {
         id: id,
         idCliente: pedidoMap['idCliente'] as int,
         idUsuario: pedidoMap['idUsuario'] as int,
-        totalPedido: pedidoMap['totalPedido'] as double,
-        ultimaAlteracao: pedidoMap['ultimaAlteracao'] as String?,
+        totalPedido: (pedidoMap['totalPedido'] as num).toDouble(),
+        ultimaAlteracao: pedidoMap['ultimaAlteracao'] == null
+            ? null
+            : DateTime.parse(pedidoMap['ultimaAlteracao'] as String),
         itens: itemMaps.map((map) => item.PedidoItem.fromJson(map)).toList(),
         pagamentos: pagamentoMaps.map((map) => pagamento.PedidoPagamento.fromJson(map)).toList(),
       ));

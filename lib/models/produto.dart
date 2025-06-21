@@ -1,13 +1,17 @@
-class Produto {
-  final int? id;
-  final String nome;
-  final String unidade; // un, cx, kg, lt, ml
-  final double qtdEstoque;
-  final double precoVenda;
-  final int status; // 0 - Ativo / 1 - Inativo
-  final double? custo;
-  final String? codigoBarra;
-  final String? ultimaAlteracao;
+import 'base_model.dart';
+
+class Produto implements BaseModel {
+  @override
+  int? id;
+  String nome;
+  String unidade; // un, cx, kg, lt, ml
+  double qtdEstoque;
+  double precoVenda;
+  int status; // 0 - Ativo / 1 - Inativo
+  double? custo;
+  String? codigoBarra;
+  @override
+  DateTime? ultimaAlteracao;
 
   Produto({
     this.id,
@@ -28,10 +32,14 @@ class Produto {
       unidade: json['unidade'],
       qtdEstoque: json['qtdEstoque'].toDouble(),
       precoVenda: json['precoVenda'].toDouble(),
-      status: json['Status'],
+      status: json['status'] is String
+          ? int.parse(json['status'])
+          : json['status'],
       custo: json['custo']?.toDouble(),
       codigoBarra: json['codigoBarra'],
-      ultimaAlteracao: json['ultimaAlteracao'],
+      ultimaAlteracao: json['ultimaAlteracao'] == null
+          ? null
+          : DateTime.parse(json['ultimaAlteracao']),
     );
   }
 
@@ -42,10 +50,10 @@ class Produto {
       'unidade': unidade,
       'qtdEstoque': qtdEstoque,
       'precoVenda': precoVenda,
-      'Status': status,
+      'status': status,
       'custo': custo,
       'codigoBarra': codigoBarra,
-      'ultimaAlteracao': ultimaAlteracao,
+      'ultimaAlteracao': ultimaAlteracao?.toIso8601String(),
     };
   }
 } 

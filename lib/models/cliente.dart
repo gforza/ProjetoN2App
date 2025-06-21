@@ -1,16 +1,20 @@
-class Cliente {
-  final int? id;
-  final String nome;
-  final String tipo; // F - Física / J - Jurídica
-  final String cpfCnpj;
-  final String? email;
-  final String? telefone;
-  final String? cep;
-  final String? endereco;
-  final String? bairro;
-  final String? cidade;
-  final String? uf;
-  final String? ultimaAlteracao;
+import 'base_model.dart';
+
+class Cliente implements BaseModel {
+  @override
+  int? id;
+  String nome;
+  String tipo; // F - Física / J - Jurídica
+  String cpfCnpj;
+  String? email;
+  String? telefone;
+  String? cep;
+  String? endereco;
+  String? bairro;
+  String? cidade;
+  String? uf;
+  @override
+  DateTime? ultimaAlteracao;
 
   Cliente({
     this.id,
@@ -40,7 +44,9 @@ class Cliente {
       bairro: json['bairro'],
       cidade: json['cidade'],
       uf: json['uf'],
-      ultimaAlteracao: json['ultimaAlteracao'],
+      ultimaAlteracao: json['ultimaAlteracao'] == null
+          ? null
+          : DateTime.parse(json['ultimaAlteracao']),
     );
   }
 
@@ -57,7 +63,15 @@ class Cliente {
       'bairro': bairro,
       'cidade': cidade,
       'uf': uf,
-      'ultimaAlteracao': ultimaAlteracao,
+      'ultimaAlteracao': ultimaAlteracao?.toIso8601String(),
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Cliente && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 } 

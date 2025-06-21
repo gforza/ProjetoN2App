@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../dao/usuario_dao.dart';
-import '../models/usuario.dart';
+import '../controllers/app_controller.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +13,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nomeController = TextEditingController();
   final _senhaController = TextEditingController();
   bool _isLoading = false;
+  final AppController _appController = AppController();
 
   @override
   void dispose() {
@@ -28,9 +28,16 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final usuario = await UsuarioDao().buscarPorNome(_nomeController.text);
-      
-      if (usuario == null || usuario.senha != _senhaController.text) {
+      final nome = _nomeController.text;
+      final senha = _senhaController.text;
+
+      final loginValido = await _appController.validarCredenciais(nome, senha);
+
+      if (loginValido) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -39,11 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         }
-        return;
-      }
-
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
       if (mounted) {
