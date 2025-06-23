@@ -12,16 +12,16 @@ class ClienteDao {
     return await _dbService.update(
       'clientes',
       cliente.toJson(),
-      'id = ?',
-      [cliente.id],
+      where: 'id = ?',
+      whereArgs: [cliente.id.toString()],
     );
   }
 
   Future<int> delete(int id) async {
     return await _dbService.delete(
       'clientes',
-      'id = ?',
-      [id],
+      where: 'id = ?',
+      whereArgs: [id.toString()],
     );
   }
 
@@ -29,7 +29,7 @@ class ClienteDao {
     final List<Map<String, dynamic>> maps = await _dbService.query(
       'clientes',
       where: 'id = ?',
-      whereArgs: [id],
+      whereArgs: [id.toString()],
     );
 
     if (maps.isNotEmpty) {

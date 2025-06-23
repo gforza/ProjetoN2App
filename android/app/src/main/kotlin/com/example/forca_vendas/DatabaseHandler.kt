@@ -2,12 +2,15 @@ package com.example.forca_vendas
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import io.flutter.plugin.common.MethodChannel
 
 class DatabaseHandler(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+
+    private val sharedPreferences: SharedPreferences = context.getSharedPreferences("forca_vendas_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val DATABASE_VERSION = 1
@@ -39,6 +42,25 @@ class DatabaseHandler(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             "initDatabase" -> {
                 writableDatabase
                 result.success(null)
+            }
+            "saveString" -> {
+                val key = call.argument<String>("key")
+                val value = call.argument<String>("value")
+                if (key != null && value != null) {
+                    sharedPreferences.edit().putString(key, value).apply()
+                    result.success(null)
+                } else {
+                    result.error("INVALID_ARGUMENTS", "Key or value is null", null)
+                }
+            }
+            "loadString" -> {
+                val key = call.argument<String>("key")
+                if (key != null) {
+                    val value = sharedPreferences.getString(key, "")
+                    result.success(value)
+                } else {
+                    result.error("INVALID_ARGUMENTS", "Key is null", null)
+                }
             }
             "insert" -> {
                 val table = call.argument<String>("table")

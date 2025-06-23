@@ -12,16 +12,16 @@ class UsuarioDao {
     return await _dbService.update(
       'usuarios',
       usuario.toJson(),
-      'id = ?',
-      [usuario.id],
+      where: 'id = ?',
+      whereArgs: [usuario.id.toString()],
     );
   }
 
   Future<int> delete(int id) async {
     return await _dbService.delete(
       'usuarios',
-      'id = ?',
-      [id],
+      where: 'id = ?',
+      whereArgs: [id.toString()],
     );
   }
 
@@ -29,7 +29,7 @@ class UsuarioDao {
     final List<Map<String, dynamic>> maps = await _dbService.query(
       'usuarios',
       where: 'id = ?',
-      whereArgs: [id],
+      whereArgs: [id.toString()],
     );
 
     if (maps.isNotEmpty) {

@@ -1,6 +1,6 @@
 class PedidoItem {
   final int? id;
-  final int idPedido;
+  int idPedido;
   final int idProduto;
   final double quantidade;
   final double totalItem;

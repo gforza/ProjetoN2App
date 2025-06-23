@@ -12,16 +12,16 @@ class ProdutoDao {
     return await _dbService.update(
       'produtos',
       produto.toJson(),
-      'id = ?',
-      [produto.id],
+      where: 'id = ?',
+      whereArgs: [produto.id.toString()],
     );
   }
 
   Future<int> delete(int id) async {
     return await _dbService.delete(
       'produtos',
-      'id = ?',
-      [id],
+      where: 'id = ?',
+      whereArgs: [id.toString()],
     );
   }
 
@@ -29,7 +29,7 @@ class ProdutoDao {
     final List<Map<String, dynamic>> maps = await _dbService.query(
       'produtos',
       where: 'id = ?',
-      whereArgs: [id],
+      whereArgs: [id.toString()],
     );
 
     if (maps.isNotEmpty) {
@@ -42,7 +42,7 @@ class ProdutoDao {
     final List<Map<String, dynamic>> maps = await _dbService.query(
       'produtos',
       where: 'status = ?',
-      whereArgs: [0],
+      whereArgs: ['0'],
     );
     return List.generate(maps.length, (i) {
       return Produto.fromJson(maps[i]);

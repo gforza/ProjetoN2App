@@ -1,6 +1,10 @@
 import 'package:flutter/services.dart';
 
 class DatabaseService {
+  static final DatabaseService _instance = DatabaseService._internal();
+  factory DatabaseService() => _instance;
+  DatabaseService._internal();
+
   static const MethodChannel _channel = MethodChannel('com.example.forca_vendas/database');
 
   Future<void> initDatabase() async {
@@ -24,13 +28,14 @@ class DatabaseService {
     }
   }
 
-  Future<int> update(String table, Map<String, dynamic> data, String where, List<dynamic> whereArgs) async {
+  Future<int> update(String table, Map<String, dynamic> data,
+      {String? where, List<String>? whereArgs}) async {
     try {
       final int result = await _channel.invokeMethod('update', {
         'table': table,
         'data': data,
         'where': where,
-        'whereArgs': whereArgs.map((arg) => arg.toString()).toList(),
+        'whereArgs': whereArgs,
       });
       return result;
     } on PlatformException catch (e) {
@@ -39,14 +44,14 @@ class DatabaseService {
     }
   }
   
-  Future<List<Map<String, dynamic>>> query(String table, {String? where, List<dynamic>? whereArgs}) async {
+  Future<List<Map<String, dynamic>>> query(String table,
+      {String? where, List<String>? whereArgs}) async {
     try {
-      final List<dynamic>? result = await _channel.invokeMethod('query', {
+      final List<dynamic> result = await _channel.invokeMethod('query', {
         'table': table,
         'where': where,
-        'whereArgs': whereArgs?.map((arg) => arg.toString()).toList(),
+        'whereArgs': whereArgs,
       });
-      if (result == null) return [];
       return result.map((map) => Map<String, dynamic>.from(map)).toList();
     } on PlatformException catch (e) {
       print("Failed to query $table: '${e.message}'.");
@@ -54,12 +59,12 @@ class DatabaseService {
     }
   }
 
-  Future<int> delete(String table, String where, List<dynamic> whereArgs) async {
+  Future<int> delete(String table, {String? where, List<String>? whereArgs}) async {
     try {
       final int result = await _channel.invokeMethod('delete', {
         'table': table,
         'where': where,
-        'whereArgs': whereArgs.map((arg) => arg.toString()).toList(),
+        'whereArgs': whereArgs,
       });
       return result;
     } on PlatformException catch (e) {

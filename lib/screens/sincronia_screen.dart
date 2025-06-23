@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import '../dao/cliente_dao.dart';
 import '../dao/produto_dao.dart';
@@ -24,6 +24,7 @@ class _SincroniaScreenState extends State<SincroniaScreen> {
   final _produtoDao = ProdutoDao();
   final _pedidoDao = PedidoDao();
   final _usuarioDao = UsuarioDao();
+  final _storageService = StorageService();
   bool _isLoading = false;
   String _status = '';
 
@@ -34,8 +35,7 @@ class _SincroniaScreenState extends State<SincroniaScreen> {
   }
 
   Future<void> _carregarConfiguracoes() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url = prefs.getString('api_url') ?? '';
+    final url = await _storageService.loadString('api_url');
     _apiService = ApiService(baseUrl: url);
   }
 

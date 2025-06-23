@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/storage_service.dart';
 
 class ConfiguracaoScreen extends StatefulWidget {
   const ConfiguracaoScreen({super.key});
@@ -11,6 +11,7 @@ class ConfiguracaoScreen extends StatefulWidget {
 class _ConfiguracaoScreenState extends State<ConfiguracaoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _urlController = TextEditingController();
+  final _storageService = StorageService();
   bool _isLoading = false;
 
   @override
@@ -31,8 +32,7 @@ class _ConfiguracaoScreenState extends State<ConfiguracaoScreen> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final url = prefs.getString('api_url') ?? '';
+      final url = await _storageService.loadString('api_url');
       _urlController.text = url;
     } catch (e) {
       if (mounted) {
@@ -59,8 +59,7 @@ class _ConfiguracaoScreenState extends State<ConfiguracaoScreen> {
       });
 
       try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('api_url', _urlController.text);
+        await _storageService.saveString('api_url', _urlController.text);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -1,6 +1,6 @@
 class PedidoPagamento {
   final int? id;
-  final int idPedido;
+  int idPedido;
   final double valor;
 
   PedidoPagamento({
